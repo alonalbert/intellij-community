@@ -57,6 +57,7 @@ class ClassPathXmlPathResolver(
       val moduleName = path.removeSuffix(".xml")
       when {
         isRunningFromSources && path.startsWith("intellij.") && dataLoader.emptyDescriptorIfCannotResolve -> {
+          println("====================================== Cannot resolve $path")
           log.trace("Cannot resolve $path (dataLoader=$dataLoader, classLoader=$classLoader). ")
           return PluginDescriptorBuilder.builder().apply {
             `package` = "unresolved.$moduleName"

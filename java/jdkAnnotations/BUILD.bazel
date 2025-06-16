@@ -1,0 +1,10 @@
+genrule(
+    name = "jdkAnnotations",
+    srcs = glob(
+        ["**/*"],
+        exclude = ["BUILD.bazel"],
+    ),
+    outs = ["jdkAnnotations.jar"],
+    cmd = "( cd java/jdkAnnotations; jar cvf ../../$@ . )",
+    visibility = ["//visibility:public"],
+)

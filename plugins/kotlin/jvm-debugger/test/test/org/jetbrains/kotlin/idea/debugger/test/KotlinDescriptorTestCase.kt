@@ -153,7 +153,13 @@ abstract class KotlinDescriptorTestCase : DescriptorTestCase(),
 
     protected open fun fileName(): String = getTestDataFileName(this::class.java, this.name) ?: (getTestName(false) + ".kt")
 
-    fun getTestDataPath(): String = getTestsRoot(this::class.java)
+    fun getTestDataPath(): String {
+        val testData = System.getProperty("test.data")
+        if (testData != null) {
+            return testData
+        }
+        return getTestsRoot(this::class.java)
+    }
 
     open fun lambdasGenerationScheme() = JvmClosureGenerationScheme.CLASS
 

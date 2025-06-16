@@ -1,0 +1,9 @@
+filegroup(
+    name = "libraries",
+    srcs = glob(
+        [
+            "libraries/*.*",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+)

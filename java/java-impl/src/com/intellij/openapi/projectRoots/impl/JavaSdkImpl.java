@@ -410,7 +410,8 @@ public final class JavaSdkImpl extends JavaSdk {
     LocalFileSystem lfs = LocalFileSystem.getInstance();
     String pathInResources = "resources/jdkAnnotations.jar";
     if (Files.isRegularFile(javaPluginClassesRootPath)) {
-      Path annotationsJarPath = javaPluginClassesRootPath.resolveSibling(pathInResources);
+      String property = System.getProperty("idea.jdk-annotations.jar");
+      Path annotationsJarPath = property != null ? Path.of(property) : javaPluginClassesRootPath.resolveSibling(pathInResources);
       String annotationsJarPathString = FileUtil.toSystemIndependentName(annotationsJarPath.toString());
       String url = "jar://" + annotationsJarPathString + "!/";
       root = refresh ? vfm.refreshAndFindFileByUrl(url) : vfm.findFileByUrl(url);

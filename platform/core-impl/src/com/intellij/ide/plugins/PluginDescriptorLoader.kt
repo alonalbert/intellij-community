@@ -423,6 +423,7 @@ suspend fun loadDescriptors(
   } finally {
     loadingContext.close()
   }
+  println("======================= Plugins:\n${discoveredPlugins.discoveredPlugins.flatMap { it.plugins }.map { it.name }.sorted().joinToString("\n") { it }}")
   return loadingContext to discoveredPlugins
 }
 
@@ -855,16 +856,25 @@ private fun CoroutineScope.loadCoreModules(
   if (urlToFilename.isNotEmpty()) {
     val libDir = if (useCoreClassLoader) null else Paths.get(PathManager.getLibPath())
     urlToFilename.mapTo(result) { (url, filename) ->
+      //println("==================== Loading ${url.path}")
       async(Dispatchers.IO) {
-        loadDescriptorFromResource(
-          resource = url,
-          filename = filename,
-          loadingContext = loadingContext,
-          pathResolver = pathResolver,
-          useCoreClassLoader = useCoreClassLoader,
-          pool = pool,
-          libDir = libDir,
-        )
+        try {
+          loadDescriptorFromResource(
+            resource = url,
+            filename = filename,
+            loadingContext = loadingContext,
+            pathResolver = pathResolver,
+            useCoreClassLoader = useCoreClassLoader,
+            pool = pool,
+            libDir = libDir,
+          ).also {
+            //println("====================    Loaded ${it?.name}}")
+          }
+        } catch (e: Exception) {
+          //println("===================== Error loading ${url.path}")
+          e.printStackTrace()
+          throw e
+        }
       }
     }
   }
@@ -934,6 +944,9 @@ private fun loadCoreProductPlugin(
     it.build()
   }
   val libDir = Paths.get(PathManager.getLibPath())
+  if (raw.name == null && raw.id == null) {
+    println()
+  }
   val descriptor = IdeaPluginDescriptorImpl(raw = raw, pluginPath = libDir, isBundled = true, useCoreClassLoader = useCoreClassLoader)
   loadContentModuleDescriptors(descriptor = descriptor, pathResolver = pathResolver, libDir = libDir, loadingContext = loadingContext, dataLoader = dataLoader)
   descriptor.loadPluginDependencyDescriptors(loadingContext = loadingContext, pathResolver = pathResolver, dataLoader = dataLoader)
@@ -1229,8 +1242,9 @@ private fun loadDescriptorFromResource(
       URLUtil.JAR_PROTOCOL == resource.protocol -> {
         val resolver = pool.load(file)
         closeable = resolver as? Closeable
-        val loader = ImmutableZipFileDataLoader(resolver = resolver, zipPath = file)
-
+        val loader = object : DataLoader by ImmutableZipFileDataLoader(resolver = resolver, zipPath = file) {
+          override val emptyDescriptorIfCannotResolve = true
+        }
         val relevantJarsRoot = PathManager.getArchivedCompliedClassesLocation()
         if (relevantJarsRoot != null && file.startsWith(relevantJarsRoot)) {
           // support for archived compile outputs (each module in separate jar)
@@ -1251,6 +1265,10 @@ private fun loadDescriptorFromResource(
       else -> return null
     }
 
+    if (resource.path.contains("java.plugin".toRegex())) {
+      println()
+    }
+
     val raw = PluginDescriptorFromXmlStreamConsumer(loadingContext, pathResolver.toXIncludeLoader(dataLoader)).let {
       it.consume(input, file.toString())
       loadingContext.patchPlugin(it.getBuilder())
@@ -1264,6 +1282,9 @@ private fun loadDescriptorFromResource(
       val runFromSources = pathResolver.isRunningFromSources || PluginManagerCore.isUnitTestMode || forceUseCoreClassloader()
       for (module in descriptor.content.modules) {
         val subDescriptorFile = module.configFile ?: "${module.name}.xml"
+        if (module.name == "intellij.debugger.collections.visualizer.jvm") {
+          println()
+        }
         val subRaw = pathResolver.resolveModuleFile(loadingContext, dataLoader, subDescriptorFile)
         val subDescriptor = descriptor.createSub(subRaw, subDescriptorFile, module)
         if (runFromSources && subDescriptor.packagePrefix == null) {
@@ -1283,8 +1304,14 @@ private fun loadDescriptorFromResource(
     throw e
   }
   catch (e: Throwable) {
+    if (resource.path.contains("java.plugin".toRegex())) {
+      println("========================================== error =============================")
+      e.printStackTrace()
+      System.exit(1)
+    }
+
     LOG.info("Cannot load $resource", e)
-    return null
+    return null;
   }
   finally {
     closeable?.close()
