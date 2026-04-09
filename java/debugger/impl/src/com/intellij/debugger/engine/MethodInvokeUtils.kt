@@ -76,12 +76,12 @@ object MethodInvokeUtils {
   }
 
   fun getMethodHandlesImplLookup(evaluationContext: EvaluationContextImpl): ObjectReference? {
-    val theClass = evaluationContext.debugProcess.findClass(evaluationContext,
-                                                            "java.lang.invoke.MethodHandles\$Lookup",
-                                                            null)
-    val theField = DebuggerUtils.findField(theClass,
-                                           "IMPL_LOOKUP")
-    return theClass?.getValue(theField) as? ObjectReference
+    val theClass = runCatching {
+      // On Android API < 26, this will throw
+      evaluationContext.debugProcess.findClass(evaluationContext, "java.lang.invoke.MethodHandles\$Lookup", null)
+    }.getOrNull() ?: return null
+    val theField = DebuggerUtils.findField(theClass, "IMPL_LOOKUP")
+    return theClass.getValue(theField) as? ObjectReference
   }
 }
 
